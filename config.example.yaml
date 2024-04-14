@@ -1,0 +1,6 @@
+course_name: <课程名称>
+assignment_name: <作业名称>
+email_dir: <电子邮件目录>
+output_dir: <输出目录>
+processed_log_path: <处理后邮件日志路径>
+roster_path: <名册路径>

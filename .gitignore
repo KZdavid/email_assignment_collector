@@ -1,0 +1,15 @@
+# 递归忽略所有pycache
+**/__pycache__/*
+
+# 忽略 data 目录下的所有文件
+data/*
+
+# 忽略 output 目录下的所有文件
+output/*
+
+# 忽略 tests 目录下的所有文件
+tests/data/*
+tests/output/*
+
+# 忽略配置文件
+config.yaml
