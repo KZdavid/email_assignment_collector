@@ -7,7 +7,7 @@ from email_processor import EmailProcessor
 def main():
     # 环境配置 导入config
     try:
-        with open('config.yaml', 'r') as f:
+        with open('config.yaml', 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
     except FileNotFoundError:
         raise FileNotFoundError("没有找到配置文件 config.yaml 请参考 config.example.yaml 创建配置文件")
@@ -18,7 +18,7 @@ def main():
     email_dir = config['email_dir']
     output_dir = config['output_dir']
     processed_log_path = config['processed_log_path']
-    roster_path = config['roster_path']
+    roster_config = config['roster_config']
     
     # 确保邮件目录和输出目录存在
     os.makedirs(output_dir, exist_ok=True)
@@ -29,7 +29,7 @@ def main():
         'email_dir': email_dir,
         'output_dir': output_dir,
         'processed_log_path': processed_log_path,
-        'roster_path': roster_path
+        'roster_config': roster_config
     })
     processor.process_emails()
     processor.generate_report()

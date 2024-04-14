@@ -13,12 +13,24 @@ import pandas as pd
 ATTACHMENT_FOLDER = '附件'
 EMAIL_ARCHIVE_FOLDER = '邮件存档'
 
+def excel_col_to_index(col):
+    """Convert Excel-style column letter to zero-based column index."""
+    index = 0
+    for char in col:
+        index = index * 26 + (ord(char.upper()) - ord('A') + 1)
+    return index - 1
+
 class EmailProcessor:
     def __init__(self, course_name ='Course' ,assignment_name='Assignment', config=None):
+        '''
+        course_name: 课程名称
+        assignment_name: 作业名称
+        config: 配置信息
+        '''
         # 确保配置包含所有必要的项
         if config is None:
             raise ValueError("Config is required.")
-        required_keys = ['email_dir', 'output_dir', 'processed_log_path', 'roster_path']
+        required_keys = ['email_dir', 'output_dir', 'processed_log_path', 'roster_config']
         missing_keys = [key for key in required_keys if key not in config]
         if missing_keys:
             raise ValueError(f"Missing config keys: {', '.join(missing_keys)}")
@@ -26,12 +38,34 @@ class EmailProcessor:
         self.course_name = course_name
         self.assignment_name = assignment_name
         self.config = config
-        self.roster_df = pd.read_excel(self.config['roster_path'], usecols="B:C", skiprows=5, header=None, names=['学号', '姓名'], dtype={'学号': str})
+        # 读取名册信息
+        self.load_roster()
+        # 读取已处理的邮件信息
         self.load_processed_emails()
+        
+    def load_roster(self):
+        roster_config = self.config['roster_config']
+        # 检查配置是否包含所有必要的项
+        required_keys = ['path', 'student_id_column', 'name_column', 'start_row']
+        missing_keys = [key for key in required_keys if key not in roster_config]
+        if missing_keys:
+            raise ValueError(f"Missing roster config keys: {', '.join(missing_keys)}")
+        # 读取名册信息
+        usecols = [excel_col_to_index(roster_config['student_id_column']), excel_col_to_index(roster_config['name_column'])]
+        # 跳过标题行
+        skiprows = roster_config['start_row'] - 1  # 转换为0-based index
+        self.roster_df = pd.read_excel(
+            roster_config['path'],
+            usecols=usecols,
+            skiprows=skiprows,
+            header=None,
+            names=['学号', '姓名'],
+            dtype={'学号': str}
+        )
 
     def load_processed_emails(self):
         try:
-            with open(self.config['processed_log_path'], 'r') as file:
+            with open(self.config['processed_log_path'], 'r', encoding='utf-8') as file:
                 self.processed_emails = json.load(file)
         except FileNotFoundError:
             self.processed_emails = {}
@@ -147,10 +181,12 @@ class EmailProcessor:
         report_df.to_excel(report_path, index=False)
 
 # Example usage:
-# config = {
-#     'email_dir': '/path/to/emails',
-#     'output_dir': '/path/to/processed_emails',
-#     'processed_log_path': '/path/to/processed_emails.json'
-# }
-# processor = EmailProcessor(config)
-# processor.process_emails()
+'''
+config = {
+    'email_dir': '/path/to/emails',
+    'output_dir': '/path/to/processed_emails',
+    'processed_log_path': '/path/to/processed_emails.json'
+}
+processor = EmailProcessor(config)
+processor.process_emails()
+'''

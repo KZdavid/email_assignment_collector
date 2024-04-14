@@ -18,6 +18,12 @@ class TestEmailProcessor(unittest.TestCase):
         self.output_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), 'output'))
         self.processed_log_path = os.path.normpath(os.path.join(os.path.dirname(__file__), 'output', 'processed_emails.json'))
         self.roster_path = os.path.normpath(os.path.join(os.path.dirname(__file__), 'data', 'roster_test.xlsx'))
+        self.roster_config = {
+            'path': self.roster_path,
+            'student_id_column': 'B',
+            'name_column': 'C',
+            'start_row': 6
+        }
 
         # 确保测试邮件目录和输出目录存在
         os.makedirs(self.output_dir, exist_ok=True)
@@ -48,7 +54,7 @@ class TestEmailProcessor(unittest.TestCase):
             'email_dir': self.email_dir,
             'output_dir': self.output_dir,
             'processed_log_path': self.processed_log_path,
-            'roster_path': self.roster_path
+            'roster_config': self.roster_config
         })
 
     def tearDown(self):
