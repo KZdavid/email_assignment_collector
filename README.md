@@ -5,12 +5,22 @@
 ## 使用方法
 
 1. 创建一个 [`config.yaml`] 配置文件，参考 [`config.example.yaml`] 文件。在配置文件中，你需要指定以下参数：
-   - [`course_name`]：课程名称
-   - [`assignment_name`]：作业名称
-   - [`email_dir`]：存放邮件的目录
-   - [`output_dir`]：输出目录
-   - [`processed_log_path`]：处理过的邮件的日志文件路径
-   - [`roster_path`]：学生名单文件路径
+   - [`course_name`]\: 课程名称
+   - [`assignment_name`]\: 作业名称
+   - [`email_dir`]\: 存放邮件的目录
+   - [`output_dir`]\: 输出目录
+   - [`processed_log_path`]\: 处理过的邮件的日志文件路径
+   - [`roster_config`]\: 学生名单文件设置
+      - [`path`]：学生名单文件路径
+      - [`student_id_column`]\: 学号所在列的（Excel列的字母表示）
+      - [`name_column`]\: 学生姓名所在的列
+      - [`start_row`]\: 点名册开始读取的行号
+   
+   例如，假设学生名单在`"data/点名册.xlsx"`，第一个学生的学号在B3单元格，姓名在C3，则
+   - [`roster_config`]\: "data/点名册.xlsx"
+      - [`student_id_column`]\: 'B'
+      - [`name_column`]\: 'C'
+      - [`start_row`]\: 3
 2. 通过邮箱下载所有学生某次作业的`.eml`格式的作业邮件到[`email_dir`]
 3. 运行 [`main.py`] 文件来处理邮件。处理过程包括提取邮件中的附件，将邮件存档，以及生成处理报告
 
