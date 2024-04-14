@@ -71,8 +71,8 @@ class EmailProcessor:
             self.processed_emails = {}
 
     def save_processed_emails(self):
-        with open(self.config['processed_log_path'], 'w') as file:
-            json.dump(self.processed_emails, file, indent=4)
+        with open(self.config['processed_log_path'], 'w', 'utf-8') as file:
+            json.dump(self.processed_emails, file, ensure_ascii=False, indent=4)
 
     def process_emails(self):
         for email_file in os.listdir(self.config['email_dir']):
