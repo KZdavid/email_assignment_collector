@@ -10,6 +10,8 @@ output/*
 # 忽略 tests 目录下的所有文件
 tests/data/*
 tests/output/*
+tests/*.yaml
 
 # 忽略配置文件
-config.yaml
+*.yaml
+!config.example.yaml

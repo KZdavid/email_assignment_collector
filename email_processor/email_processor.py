@@ -20,7 +20,7 @@ def excel_col_to_index(col):
     return index - 1
 
 class EmailProcessor:
-    def __init__(self, course_name ='Course' ,assignment_name='Assignment', config=None):
+    def __init__(self, config=None):
         '''
         course_name: 课程名称
         assignment_name: 作业名称
@@ -29,36 +29,48 @@ class EmailProcessor:
         # 确保配置包含所有必要的项
         if config is None:
             raise ValueError("Config is required.")
-        required_keys = ['email_dir', 'output_dir', 'roster_config']
+        required_keys = ['course_name', 'assignment_name', 'email_dir', 'output_dir', 'roster_config']
         missing_keys = [key for key in required_keys if key not in config]
         if missing_keys:
             raise ValueError(f"Missing config keys: {', '.join(missing_keys)}")
         
-        self.course_name = course_name
-        self.assignment_name = assignment_name
+        # 读取配置信息
+        self.course_name = config['course_name']
+        self.assignment_name = config['assignment_name']
         self._root_output_dir = config['output_dir']
         self._email_dir = config['email_dir']
         self._roster_config = config['roster_config']
+        
+        # 创建输出子目录
+        self._output_dir = os.path.join(self._root_output_dir, self.course_name, self.assignment_name)
+        os.makedirs(self._output_dir, exist_ok=True)
+        
+        # 别名设置
+        self.course_alias = []
+        self.assignment_alias = []
+        if 'course_alias' in config and isinstance(config['course_alias'], list) and all(isinstance(alias, str) for alias in config['course_alias']):
+            self.course_alias = config['course_alias']
+        if 'assignment_alias' in config and isinstance(config['assignment_alias'], list) and all(isinstance(alias, str) for alias in config['assignment_alias']):
+            self.assignment_alias = config['assignment_alias']
+        
         # 读取名册信息
         self.load_roster()
 
-        self._output_dir = os.path.join(self._root_output_dir, course_name, assignment_name)
-
-        if 'output_email_dir' in self.config:
-            self._output_dir = self.config['output_email_dir']
+        if 'output_email_dir' in config:
+            self._output_dir = config['output_email_dir']
         else:
             self._output_email_dir = os.path.join(self._root_output_dir, EMAIL_ARCHIVE_FOLDER)
 
-        if 'output_attachment_dir' in self.config:
-            self._output_attachment_dir = self.config['output_attachment_dir']
+        if 'output_attachment_dir' in config:
+            self._output_attachment_dir = config['output_attachment_dir']
         else:
             self._output_attachment_dir = os.path.join(self._root_output_dir, ATTACHMENT_FOLDER)
         
         # 读取已处理的邮件信息
-        if 'processed_log_path' in self.config:
-            self._processed_log_path = self.config['processed_log_path']
+        if 'processed_log_path' in config:
+            self._processed_log_path = config['processed_log_path']
         else:
-            self._processed_log_path = os.path.join(self._output_dir, course_name + ' - ' + assignment_name + ' - 已处理邮件列表.json')
+            self._processed_log_path = os.path.join(self._output_dir, self.course_name + ' - ' + self.assignment_name + ' - 已处理邮件列表.json')
         self.load_processed_emails()
         
     def load_roster(self):
@@ -89,7 +101,7 @@ class EmailProcessor:
             self.processed_emails_list = {}
 
     def save_processed_emails_list(self):
-        with open(self._processed_log_path, 'w', 'utf-8') as file:
+        with open(self._processed_log_path, 'w', encoding='utf-8') as file:
             json.dump(self.processed_emails_list, file, ensure_ascii=False, indent=4)
 
     def process_emails(self):
@@ -105,7 +117,7 @@ class EmailProcessor:
                 if email_key in self.processed_emails_list:
                     continue  # Skip already processed emails
                 
-                if not self.has_course_name(subject + " " + " ".join([a[0] for a in attachments])):
+                if not self.is_valid_assignment(subject + " " + " ".join([a[0] for a in attachments])):
                     continue  # Skip emails that don't contain the course name
 
                 student_id, name = self.find_student_info(subject + " " + " ".join([a[0] for a in attachments]))
@@ -132,7 +144,7 @@ class EmailProcessor:
     def process_email(self, file_path, student_id, name, attachments):
         new_name = f"{self.course_name} - {self.assignment_name} - {student_id} - {name}.eml"
         new_path = os.path.join(self._output_dir, EMAIL_ARCHIVE_FOLDER, new_name)
-        self.save_attachments(student_id, name, attachments)
+        # self.save_attachments(student_id, name, attachments)
         # 确保目录存在
         os.makedirs(os.path.dirname(new_path), exist_ok=True)
         shutil.move(file_path, new_path)
@@ -149,12 +161,14 @@ class EmailProcessor:
                 return student_id, name
         return None, None
     
-    def has_course_name(self, text):
-        course_name = self.course_name
-        course_name_pattern = re.escape(course_name)
-        if re.search(course_name_pattern, text):
-            return True
-        return None
+    def is_valid_assignment(self, text):
+        course_names = [self.course_name] + self.course_alias
+        assignment_names = [self.assignment_name] + self.assignment_alias
+        if not any(re.search(re.escape(name), text) for name in course_names):
+            return False # 如果邮件中不包含任意一个课程名称，则不是有效的作业邮件
+        if not any(re.search(re.escape(name), text) for name in assignment_names):
+            return False # 如果邮件中不包含任意一个作业名称，则不是有效的作业邮件
+        return True
 
     def save_attachments(self, student_id, name, attachments):
         folder_path = os.path.join(self._output_dir, ATTACHMENT_FOLDER, f"{self.course_name} - {self.assignment_name} - {student_id} - {name}")
@@ -183,6 +197,10 @@ class EmailProcessor:
             filename = part.get_filename()
             if filename:
                 attachments.append((filename, part.get_payload(decode=True)))
+        subject = subject if subject else ''
+        attachments = attachments if attachments else []
+        sender = sender if sender else ''
+        date = date if date else ''
         return subject, attachments, sender, date
     
     import pandas as pd

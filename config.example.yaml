@@ -4,8 +4,14 @@
 # 课程名称
 course_name: "课程名称"
 
+# 课程别名 避免学生笔误设置的别名
+# course_alias: ["课程别名1", "课程别名2"]
+
 # 作业名称
 assignment_name: "作业名称"
+
+# 作业别名 避免学生笔误设置的别名
+# assignment_alias: ["作业别名1", "作业别名2"]
 
 # 存放待处理电子邮件.eml文件的目录
 email_dir: "data/emails"
@@ -24,7 +30,7 @@ output_dir: "output/"
 # 处理过的邮件记录文件路径
 # 该文件用于记录已经处理过的邮件，避免重复处理
 # 如果文件不存在，程序会自动创建，认为所有邮件都未处理过
-processed_log_path: "output/课程名称/作业名称/已处理邮件列表.json"
+processed_log_path: "output/课程名称/作业名称/课程名称 - 作业名称 - 已处理邮件列表.json"
 
 # 点名册配置
 roster_config:
