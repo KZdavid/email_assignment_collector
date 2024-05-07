@@ -7,14 +7,24 @@ course_name: "课程名称"
 # 作业名称
 assignment_name: "作业名称"
 
-# 存放电子邮件文件的目录
+# 存放待处理电子邮件.eml文件的目录
 email_dir: "data/emails"
 
 # 输出目录，用于存放处理后的文件
 output_dir: "output/"
 
+# 已处理邮件.eml文件存放目
+# 使用默认路径则不用修改
+# output_email_dir: "output/课程名称/作业名称/邮件"
+
+# 已处理邮件附件存放目录
+# 使用默认路径则不用修改
+# output_attachment_dir: "output/课程名称/作业名称/附件"
+
 # 处理过的邮件记录文件路径
-processed_log_path: "output/processed_emails.json"
+# 该文件用于记录已经处理过的邮件，避免重复处理
+# 如果文件不存在，程序会自动创建，认为所有邮件都未处理过
+processed_log_path: "output/课程名称/作业名称/已处理邮件列表.json"
 
 # 点名册配置
 roster_config:

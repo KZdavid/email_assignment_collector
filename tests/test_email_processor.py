@@ -81,7 +81,7 @@ class TestEmailProcessor(unittest.TestCase):
         # 检查是否有日志生成
         self.assertTrue(os.path.exists(self.processed_log_path))
         # 检查日志中记录的邮件数量是否等于待处理邮件数量
-        self.assertEqual(len(self.processor.processed_emails), email_count)
+        self.assertEqual(len(self.processor.processed_emails_list), email_count)
         
     def test_skip_processed_emails(self):
         # 运行邮件处理

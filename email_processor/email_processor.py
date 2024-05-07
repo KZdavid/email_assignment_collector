@@ -3,7 +3,6 @@ import json
 import os
 import re
 import shutil
-from datetime import datetime
 from email import policy
 from email.parser import BytesParser
 
@@ -11,7 +10,7 @@ import pandas as pd
 
 # 定义常量
 ATTACHMENT_FOLDER = '附件'
-EMAIL_ARCHIVE_FOLDER = '邮件存档'
+EMAIL_ARCHIVE_FOLDER = '邮件'
 
 def excel_col_to_index(col):
     """Convert Excel-style column letter to zero-based column index."""
@@ -30,21 +29,40 @@ class EmailProcessor:
         # 确保配置包含所有必要的项
         if config is None:
             raise ValueError("Config is required.")
-        required_keys = ['email_dir', 'output_dir', 'processed_log_path', 'roster_config']
+        required_keys = ['email_dir', 'output_dir', 'roster_config']
         missing_keys = [key for key in required_keys if key not in config]
         if missing_keys:
             raise ValueError(f"Missing config keys: {', '.join(missing_keys)}")
         
         self.course_name = course_name
         self.assignment_name = assignment_name
-        self.config = config
+        self._root_output_dir = config['output_dir']
+        self._email_dir = config['email_dir']
+        self._roster_config = config['roster_config']
         # 读取名册信息
         self.load_roster()
+
+        self._output_dir = os.path.join(self._root_output_dir, course_name, assignment_name)
+
+        if 'output_email_dir' in self.config:
+            self._output_dir = self.config['output_email_dir']
+        else:
+            self._output_email_dir = os.path.join(self._root_output_dir, EMAIL_ARCHIVE_FOLDER)
+
+        if 'output_attachment_dir' in self.config:
+            self._output_attachment_dir = self.config['output_attachment_dir']
+        else:
+            self._output_attachment_dir = os.path.join(self._root_output_dir, ATTACHMENT_FOLDER)
+        
         # 读取已处理的邮件信息
+        if 'processed_log_path' in self.config:
+            self._processed_log_path = self.config['processed_log_path']
+        else:
+            self._processed_log_path = os.path.join(self._output_dir, course_name + ' - ' + assignment_name + ' - 已处理邮件列表.json')
         self.load_processed_emails()
         
     def load_roster(self):
-        roster_config = self.config['roster_config']
+        roster_config = self._roster_config
         # 检查配置是否包含所有必要的项
         required_keys = ['path', 'student_id_column', 'name_column', 'start_row']
         missing_keys = [key for key in required_keys if key not in roster_config]
@@ -65,27 +83,30 @@ class EmailProcessor:
 
     def load_processed_emails(self):
         try:
-            with open(self.config['processed_log_path'], 'r', encoding='utf-8') as file:
-                self.processed_emails = json.load(file)
+            with open(self._processed_log_path, 'r', encoding='utf-8') as file:
+                self.processed_emails_list = json.load(file)
         except FileNotFoundError:
-            self.processed_emails = {}
+            self.processed_emails_list = {}
 
-    def save_processed_emails(self):
-        with open(self.config['processed_log_path'], 'w', 'utf-8') as file:
-            json.dump(self.processed_emails, file, ensure_ascii=False, indent=4)
+    def save_processed_emails_list(self):
+        with open(self._processed_log_path, 'w', 'utf-8') as file:
+            json.dump(self.processed_emails_list, file, ensure_ascii=False, indent=4)
 
     def process_emails(self):
-        for email_file in os.listdir(self.config['email_dir']):
+        for email_file in os.listdir(self._email_dir):
             if email_file.endswith('.eml'):
-                file_path = os.path.join(self.config['email_dir'], email_file)
+                file_path = os.path.join(self._email_dir, email_file)
 
                 subject, attachments, sender, timestamp = self.parse_email(file_path)
                 
                 # Generate a unique key for each email based on sender, subject, and timestamp
                 email_key = f"{sender}-{subject}-{timestamp}"
                 
-                if email_key in self.processed_emails:
+                if email_key in self.processed_emails_list:
                     continue  # Skip already processed emails
+                
+                if not self.has_course_name(subject + " " + " ".join([a[0] for a in attachments])):
+                    continue  # Skip emails that don't contain the course name
 
                 student_id, name = self.find_student_info(subject + " " + " ".join([a[0] for a in attachments]))
                 
@@ -95,19 +116,22 @@ class EmailProcessor:
                     self.record_email(email_key, student_id, name, new_email_path, attachment_paths)
                 else:
                     print(f"No valid student info found in email: {file_path}")
+        if self.processed_emails_list:
+            self.save_processed_emails_list()
+        else:
+            print("No emails processed.")
                     
     def record_email(self, email_key, student_id, name, new_email_path, attachment_paths):
-        self.processed_emails[email_key] = {
+        self.processed_emails_list[email_key] = {
             'student_id': student_id,
             'name': name,
             'email_path': new_email_path,
             'attachments': attachment_paths
         }
-        self.save_processed_emails()
 
     def process_email(self, file_path, student_id, name, attachments):
         new_name = f"{self.course_name} - {self.assignment_name} - {student_id} - {name}.eml"
-        new_path = os.path.join(self.config['output_dir'], EMAIL_ARCHIVE_FOLDER, new_name)
+        new_path = os.path.join(self._output_dir, EMAIL_ARCHIVE_FOLDER, new_name)
         self.save_attachments(student_id, name, attachments)
         # 确保目录存在
         os.makedirs(os.path.dirname(new_path), exist_ok=True)
@@ -124,9 +148,16 @@ class EmailProcessor:
             if re.search(student_id_pattern, text) and re.search(re.escape(name), text):
                 return student_id, name
         return None, None
+    
+    def has_course_name(self, text):
+        course_name = self.course_name
+        course_name_pattern = re.escape(course_name)
+        if re.search(course_name_pattern, text):
+            return True
+        return None
 
     def save_attachments(self, student_id, name, attachments):
-        folder_path = os.path.join(self.config['output_dir'], ATTACHMENT_FOLDER, f"{self.course_name} - {self.assignment_name} - {student_id} - {name}")
+        folder_path = os.path.join(self._output_dir, ATTACHMENT_FOLDER, f"{self.course_name} - {self.assignment_name} - {student_id} - {name}")
         os.makedirs(folder_path, exist_ok=True)
         attachment_paths = []
 
@@ -157,7 +188,7 @@ class EmailProcessor:
     import pandas as pd
 
     def generate_report(self):
-        processed_emails = self.processed_emails
+        processed_emails = self.processed_emails_list
         if processed_emails is None:
             raise ValueError("No processed emails found. Please run process_emails() first.")
 
@@ -177,7 +208,7 @@ class EmailProcessor:
             report_df.loc[report_df['学号'] == student_id, '附件文件夹路径'] = os.path.dirname(email_info['attachments'][0]) if email_info['attachments'] else ''
 
         # 保存更新后的名册信息
-        report_path = os.path.join(self.config['output_dir'], f"{self.course_name} - {self.assignment_name} - 提交情况.xlsx")
+        report_path = os.path.join(self._output_dir, f"{self.course_name} - {self.assignment_name} - 提交情况.xlsx")
         report_df.to_excel(report_path, index=False)
 
 # Example usage:
